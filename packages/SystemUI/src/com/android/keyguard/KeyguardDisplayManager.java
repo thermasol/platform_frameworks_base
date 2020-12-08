@@ -163,6 +163,9 @@ public class KeyguardDisplayManager {
             updateDisplays(true /* showing */);
         }
         mShowing = true;
+
+        // Do not show a lock screen
+        hide();
     }
 
     public void hide() {
@@ -296,6 +299,9 @@ public class KeyguardDisplayManager {
 
             // Avoid screen burn in
             mClock.post(mMoveTextRunnable);
+
+            // If created, throw away
+            dismiss();
         }
     }
 }
