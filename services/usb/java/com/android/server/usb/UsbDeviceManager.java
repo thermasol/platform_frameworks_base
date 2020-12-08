@@ -167,7 +167,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
     // Delay for debouncing USB disconnects.
     // We often get rapid connect/disconnect events when enabling USB functions,
     // which need debouncing.
-    private static final int UPDATE_DELAY = 1000;
+    private static final int UPDATE_DELAY = 1500;
 
     // Timeout for entering USB request mode.
     // Request is cancelled if host does not configure device within 10 seconds.
@@ -499,6 +499,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
 
             mCurrentUser = ActivityManager.getCurrentUser();
             mScreenLocked = true;
+            mHideUsbNotification = true;
 
             mSettings = getPinnedSharedPrefs(mContext);
             if (mSettings == null) {
@@ -800,6 +801,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                     mConnected = (msg.arg1 == 1);
                     mConfigured = (msg.arg2 == 1);
 
+                    mHideUsbNotification = mHideUsbNotification && (!mConnected);
                     updateUsbNotification(false);
                     updateAdbNotification(false);
                     if (mBootCompleted) {
@@ -866,7 +868,6 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                         Slog.i(TAG, "HOST_STATE connected:" + connected);
                     }
 
-                    mHideUsbNotification = false;
                     while (devices.hasNext()) {
                         Map.Entry pair = (Map.Entry) devices.next();
                         if (DEBUG) {
@@ -882,7 +883,7 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                                 UsbInterface intrface = config.getInterface(interfaceCount);
                                 interfaceCount--;
                                 if (sBlackListedInterfaces.contains(intrface.getInterfaceClass())) {
-                                    mHideUsbNotification = true;
+                                    mHideUsbNotification = mHideUsbNotification && true;
                                     break;
                                 }
                             }
@@ -1448,13 +1449,13 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
 
         private boolean waitForState(String state) {
             // wait for the transition to complete.
-            // give up after 1 second.
+            // give up after 4 second.
             String value = null;
             for (int i = 0; i < 20; i++) {
                 // State transition is done when sys.usb.state is set to the new configuration
                 value = getSystemProperty(USB_STATE_PROPERTY, "");
                 if (state.equals(value)) return true;
-                SystemClock.sleep(50);
+                SystemClock.sleep(200);
             }
             Slog.e(TAG, "waitForState(" + state + ") FAILED: got " + value);
             return false;
@@ -1822,8 +1823,13 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                     /**
                      * Dont force to default when the configuration is already set to default.
                      */
-                    if (msg.arg1 != 1) {
-                        setEnabledFunctions(UsbManager.FUNCTION_NONE, !isAdbEnabled());
+
+                    if (mCurrentFunctionsApplied) {
+                        updateState("CONFIGURED");
+                    } else if (msg.arg1 != 1) {
+                        if (msg.arg1 != 1) {
+                            setEnabledFunctions(UsbManager.FUNCTION_NONE, !isAdbEnabled());
+                        }
                     }
                     break;
                 case MSG_GADGET_HAL_REGISTERED:
