@@ -795,6 +795,7 @@ public class KeyguardViewMediator extends SystemUI {
         // Most services aren't available until the system reaches the ready state, so we
         // send it here when the device first boots.
         maybeSendUserPresentBroadcast();
+        keyguardDone();
     }
 
     /**
