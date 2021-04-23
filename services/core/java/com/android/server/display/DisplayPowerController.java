@@ -323,6 +323,9 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
     // Whether or not to skip the initial brightness ramps into STATE_ON.
     private final boolean mSkipScreenOnBrightnessRamp;
 
+    // Device defined brightness levels
+    private final int[] mAutoBrightnessLevels;
+
     // Display white balance components.
     @Nullable
     private final DisplayWhiteBalanceSettings mDisplayWhiteBalanceSettings;
@@ -438,6 +441,9 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                 com.android.internal.R.integer.config_brightness_ramp_rate_slow);
         mSkipScreenOnBrightnessRamp = resources.getBoolean(
                 com.android.internal.R.bool.config_skipScreenOnBrightnessRamp);
+
+        mAutoBrightnessLevels = resources.getIntArray(
+                com.android.internal.R.array.config_autoBrightnessLevels);
 
         if (mUseSoftwareAutoBrightnessConfig) {
             final float dozeScaleFactor = resources.getFraction(
@@ -739,6 +745,7 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
         // Update the power state request.
         final boolean mustNotify;
         final int previousPolicy;
+        int animationTarget = -1;
         boolean mustInitialize = false;
         int brightnessAdjustmentFlags = 0;
         mBrightnessReasonTemp.set(null);
@@ -1053,6 +1060,7 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
                     mColorFadeEnabled && mPowerState.getColorFadeLevel() == 1.0f;
             final boolean brightnessIsTemporary =
                     mAppliedTemporaryBrightness || mAppliedTemporaryAutoBrightnessAdjustment;
+            animationTarget = brightness;
             if (initialRampSkip || hasBrightnessBuckets
                     || wasOrWillBeInVr || !isDisplayContentVisible || brightnessIsTemporary) {
                 animateScreenBrightness(brightness, 0);
@@ -1137,6 +1145,10 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
         if (finished && mUnfinishedBusiness) {
             if (DEBUG) {
                 Slog.d(TAG, "Finished business...");
+            }
+            if (animationTarget == mAutoBrightnessLevels[0]) {
+                // Make sure we animate all the way down to off. This saves backlight life.
+                mPowerState.setScreenBrightness(0);
             }
             mUnfinishedBusiness = false;
             mCallbacks.releaseSuspendBlocker();
